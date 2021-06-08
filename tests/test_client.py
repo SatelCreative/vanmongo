@@ -13,7 +13,11 @@ class Item(BaseDocument):
 
 
 @pytest.mark.asyncio
-async def test_client():
+async def test_client(test_config):
+    await Client.initialize(
+        mongo_url=test_config.mongo_url, mongo_database=test_config.mongo_database
+    )
+
     context = Context(admin=True)
     client = Client(context=context)
 
