@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "satel_mongo"
+version = "0.1.0"
+description = ""
+authors = ["Quinn Blenkinsop <quinn@blenkinsop.net>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+pydantic = "^1.8.2"
+motor = "^2.4.0"
+shortuuid = "^1.0.1"
+
+[tool.poetry.dev-dependencies]
+mypy = "^0.812"
+black = "^21.5b2"
+isort = "^5.8.0"
+flake8 = "^3.9.2"
+pytest = "^6.2.4"
+pytest-asyncio = "^0.15.1"
+pytest-watch = "^4.2.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[mypy]
+plugins = "pydantic.mypy"
