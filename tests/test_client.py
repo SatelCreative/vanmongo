@@ -1,4 +1,5 @@
 import pytest
+from typing import Optional
 from pydantic import BaseModel
 
 from satel_mongo import BaseDocument, Client
@@ -85,3 +86,26 @@ async def test_find(test_config):
 
     assert [item async for item in items.find()] == created
     assert [item async for item in items.find({"index": 4})] == [created[4]]
+
+
+@pytest.mark.asyncio
+async def test_update(test_config):
+    class Item(BaseDocument):
+        index: int
+        description: Optional[str]
+
+    await Client.initialize(
+        mongo_url=test_config.mongo_url, mongo_database=test_config.mongo_database
+    )
+
+    items = Client().use(Item)
+
+    created = []
+    for index in range(10):
+        item = await items.create_one({"index": index})
+        created.append(item)
+
+    updated = await items.update_one({"index": 4}, {"description": "Hello there how are you?"})
+    assert updated.updated_at >= created[4].updated_at
+    assert updated.description == "Hello there how are you?"
+    assert await items.find_one_by_id(updated.id) == updated

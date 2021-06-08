@@ -82,6 +82,7 @@ class Client(Generic[TContext]):
         return Collection[TDocument, TContext](client=self, Document=Document)
 
 
+
 class Collection(Generic[TDocument, TContext]):
     """Collection"""
 
@@ -104,22 +105,19 @@ class Collection(Generic[TDocument, TContext]):
         return self.Document.parse_obj(raw) if raw else None
 
     async def find_one_by_id(self, id: str) -> Optional[TDocument]:
-        raw = await self.collection.find_one({"id": id})
-        return self.Document.parse_obj(raw) if raw else None
-
-    async def find_by_ids(self, ids: List[str]) -> List[Optional[TDocument]]:
-        """Find documents by ids"""
-        cursor = self.collection.find({"$or": [{"id": i} for i in ids]})
-        nodes = {}
-        async for raw in cursor:
-            node = self.Document.parse_obj(raw)
-            nodes[node.id] = node
-        return [nodes.get(i) for i in ids]
+        return await self.find_one({"id": id})
 
     async def find(self, query: Dict[str, Any] = {}, batch_size=100) -> AsyncGenerator[TDocument, None]:
         cursor = self.collection.find(query, batch_size=batch_size)
         async for raw in cursor:
             yield self.Document.parse_obj(raw)
+
+    async def find_by_ids(self, ids: List[str]) -> List[Optional[TDocument]]:
+        """Find documents by ids"""
+        documents = {}
+        async for document in self.find({"$or": [{"id": i} for i in ids]}):
+            documents[document.id] = document
+        return [documents.get(i) for i in ids]
 
     async def create_one(self, document: Dict[str, Any]) -> TDocument:
         """Create a new document"""
@@ -146,6 +144,39 @@ class Collection(Generic[TDocument, TContext]):
         doc.object_id = inserted_result.inserted_id  # Add generated _id
 
         return doc
+
+    async def update_one(self, query: Dict[str, Any], update: Dict[str, Any] = {}):
+        original_document = await self.find_one(query)
+
+        if not original_document:
+            raise Exception('Does not exist')
+
+        # Copy does not perform validation
+        updated_dict = original_document.copy(update=update, deep=True).dict(by_alias=True)
+        updated_document = self.Document.parse_obj(updated_dict)
+
+        original_dict = original_document.dict(by_alias=True)
+
+        # TODO signifintly improve the diffing here
+        updated_values = {}
+        for key, new_value in updated_dict.items():
+            if new_value == original_dict.get(key):
+                continue
+            updated_values[key] = new_value
+
+        if updated_values:
+            now = datetime.utcnow()
+            # Keep same precision as mongo
+            now = now.replace(microsecond=int(round(now.microsecond, -3)))
+            updated_values['updated_at'] = updated_document.updated_at = now
+            await self.collection.update_one(
+                {'id': original_document.id}, update={'$set': updated_values}
+            )
+
+        return updated_document
+
+    async def update_one_by_id(self, id: str, update: Dict[str, Any] = {}):
+        return await self.update_one({"id": id}, update)
 
 
 class BaseDocument(BaseModel):
