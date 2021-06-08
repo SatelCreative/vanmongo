@@ -51,3 +51,37 @@ async def test_indexes(db, test_config):
     )
 
     assert_indexes(db[Item.collection], id=[("id", 1)])
+
+
+@pytest.mark.asyncio
+async def test_find(test_config):
+    class Item(BaseDocument):
+        index: int
+
+    await Client.initialize(
+        mongo_url=test_config.mongo_url, mongo_database=test_config.mongo_database
+    )
+
+    items = Client().use(Item)
+
+    assert await items.find_one({}) == None
+    assert await items.find_one_by_id("fakeid") == None
+    assert await items.find_by_ids(["fakeid"]) == [None]
+    assert [item async for item in items.find()] == []
+
+    created = []
+    for index in range(10):
+        item = await items.create_one({"index": index})
+        created.append(item)
+
+    assert await items.find_one({"index": 4}) == created[4]
+    assert await items.find_one_by_id(created[0].id) == created[0]
+    assert await items.find_one_by_id(created[9].id) == created[9]
+
+    result = await items.find_by_ids(
+        [created[9].id, "fakeid", created[3].id, created[5].id]
+    )
+    assert result == [created[9], None, created[3], created[5]]
+
+    assert [item async for item in items.find()] == created
+    assert [item async for item in items.find({"index": 4})] == [created[4]]
