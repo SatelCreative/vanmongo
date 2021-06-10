@@ -1,3 +1,3 @@
-from .main import Client, BaseDocument
+from .main import Client, BaseCollection, BaseDocument
 
-__all__ = ["Client", "BaseDocument"]
+__all__ = ["Client", "BaseCollection", "BaseDocument"]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 from datetime import datetime
 from typing import (
+    overload,
     Any,
     AsyncGenerator,
     ClassVar,
@@ -10,6 +11,7 @@ from typing import (
     Optional,
     Type,
     TypeVar,
+    Union,
 )
 
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -19,6 +21,7 @@ from shortuuid import ShortUUID
 
 TContext = TypeVar("TContext", bound="BaseModel")
 TDocument = TypeVar("TDocument", bound="BaseDocument")
+TCollection = TypeVar("TCollection", bound="BaseCollection")
 
 
 class Config(BaseModel):
@@ -67,7 +70,7 @@ class Client(Generic[TContext]):
         cls.config = NotImplemented
 
     @classmethod
-    def _register(cls, key: str, Document: Type[TDocument]):
+    def _register_document(cls, key: str, Document: Type[TDocument]):
         if key in cls.__documents:
             raise Exception(f'Document with collection "{key}" already exists')
         cls.__documents[key] = Document
@@ -76,20 +79,34 @@ class Client(Generic[TContext]):
     def db(self):
         return self.__client[self.config.mongo_database]
 
+    @overload
     def use(
-        self: "Client", Document: Type[TDocument]
-    ) -> "Collection[TDocument, TContext]":
-        return Collection[TDocument, TContext](client=self, Document=Document)
+        self: "Client[TContext]", DocumentorCollection: Type[TDocument]
+    ) -> "Collection[TDocument]":
+       ...
+    @overload
+    def use(
+        self: "Client[TContext]", DocumentorCollection: Type[TCollection]
+    ) -> TCollection:
+       ...
+    def use(
+        self: "Client[TContext]", DocumentorCollection
+    ):
+        if issubclass(DocumentorCollection, BaseDocument):
+            return Collection[TDocument](client=self, Document=DocumentorCollection)
+        if issubclass(DocumentorCollection, BaseCollection):
+            return DocumentorCollection(client=self)
+        raise Exception("use must be called with Document or Collection")
 
 
 
-class Collection(Generic[TDocument, TContext]):
+class Collection(Generic[TDocument]):
     """Collection"""
 
-    client: Client[TContext]
+    client: Client
     Document: Type[TDocument]
 
-    def __init__(self, client: Client[TContext], Document: Type[TDocument]):
+    def __init__(self, client: Client, Document: Type[TDocument]):
         if Document.collection == NotImplemented:
             raise Exception("invalid Document")
 
@@ -179,6 +196,24 @@ class Collection(Generic[TDocument, TContext]):
         return await self.update_one({"id": id}, update)
 
 
+class BaseCollection(Generic[TDocument], Collection[TDocument]):
+    __document: Type[TDocument] = NotImplemented
+
+    def __init__(self, client: Client):
+        super().__init__(client=client, Document=self.__document)
+
+    def __init_subclass__(cls, *args, document: Type[TDocument] = None, **kwargs):
+
+        # NOTE: known issue in mypy
+        # https://github.com/python/mypy/issues/4660
+        super().__init_subclass__(*args, **kwargs)  # type: ignore
+
+        if not document:
+            raise Exception("BaseCollection must be extended with document=")
+
+        cls.__document = document
+
+
 class BaseDocument(BaseModel):
     """BaseDocument"""
 
@@ -204,4 +239,4 @@ class BaseDocument(BaseModel):
         else:
             cls.collection = f"{cls.__name__.lower()}s"
 
-        Client._register(cls.collection, cls)
+        Client._register_document(cls.collection, cls)

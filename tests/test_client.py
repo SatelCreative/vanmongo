@@ -2,7 +2,7 @@ import pytest
 from typing import Optional
 from pydantic import BaseModel
 
-from satel_mongo import BaseDocument, Client
+from satel_mongo import Client, BaseCollection, BaseDocument
 
 
 class Context(BaseModel):
@@ -141,18 +141,20 @@ async def test_multiple_documents(test_config):
     assert await client.db.orders.find_one({"id": order.id}) != None
 
 
-# @pytest.mark.asyncio
-# async def test_extend_collection(test_config):
-#     class Item(BaseDocument):
-#         index: int
-#         description: Optional[str]
+@pytest.mark.asyncio
+async def test_extend_collection(test_config):
+    class Item(BaseDocument):
+        index: int
+    class ItemCollection(BaseCollection[Item], document=Item):
+        async def test(self):
+            return 'uniquevalue'
 
-#     class ItemCollection(BaseCollection, document=Item):
-#         async def test(self):
-#             return 'auniquevalue'
+    await Client.initialize(
+        mongo_url=test_config.mongo_url, mongo_database=test_config.mongo_database
+    )
 
-#     await Client.initialize(
-#         mongo_url=test_config.mongo_url, mongo_database=test_config.mongo_database
-#     )
+    items =  Client().use(ItemCollection)
 
-#     items = Client().use(ItemCollection)
+    item = await items.create_one({"index": 1})
+    assert await items.test() == 'uniquevalue'
+    assert await items.find_one_by_id(item.id) == item
