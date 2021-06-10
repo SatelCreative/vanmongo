@@ -1,7 +1,7 @@
 from __future__ import annotations
+
 from datetime import datetime
 from typing import (
-    overload,
     Any,
     AsyncGenerator,
     ClassVar,
@@ -11,13 +11,15 @@ from typing import (
     Optional,
     Type,
     TypeVar,
-    Union,
+    overload,
 )
 
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field
-from pymongo import ASCENDING, DESCENDING
+# from pymongo import ASCENDING, DESCENDING
 from shortuuid import ShortUUID
+
+from .connection import Connection, Edge, PageInfo
 
 TContext = TypeVar("TContext", bound="BaseModel")
 TDocument = TypeVar("TDocument", bound="BaseDocument")
@@ -83,21 +85,20 @@ class Client(Generic[TContext]):
     def use(
         self: "Client[TContext]", DocumentorCollection: Type[TDocument]
     ) -> "Collection[TDocument]":
-       ...
+        ...
+
     @overload
     def use(
         self: "Client[TContext]", DocumentorCollection: Type[TCollection]
     ) -> TCollection:
-       ...
-    def use(
-        self: "Client[TContext]", DocumentorCollection
-    ):
+        ...
+
+    def use(self: "Client[TContext]", DocumentorCollection):
         if issubclass(DocumentorCollection, BaseDocument):
             return Collection[TDocument](client=self, Document=DocumentorCollection)
         if issubclass(DocumentorCollection, BaseCollection):
             return DocumentorCollection(client=self)
         raise Exception("use must be called with Document or Collection")
-
 
 
 class Collection(Generic[TDocument]):
@@ -124,7 +125,9 @@ class Collection(Generic[TDocument]):
     async def find_one_by_id(self, id: str) -> Optional[TDocument]:
         return await self.find_one({"id": id})
 
-    async def find(self, query: Dict[str, Any] = {}, batch_size=100) -> AsyncGenerator[TDocument, None]:
+    async def find(
+        self, query: Dict[str, Any] = {}, batch_size=100
+    ) -> AsyncGenerator[TDocument, None]:
         cursor = self.collection.find(query, batch_size=batch_size)
         async for raw in cursor:
             yield self.Document.parse_obj(raw)
@@ -135,6 +138,44 @@ class Collection(Generic[TDocument]):
         async for document in self.find({"$or": [{"id": i} for i in ids]}):
             documents[document.id] = document
         return [documents.get(i) for i in ids]
+
+    async def find_connection(
+        self,
+        first: Optional[int] = None,
+        after: Optional[str] = None,
+        last: Optional[int] = None,
+        before: Optional[str] = None,
+        query: Optional[Dict[str, Any]] = None,
+    ):
+        if not first:
+            raise NotImplementedError()
+
+        connection_query = query or {}
+        if after:
+            raise NotImplementedError()
+
+        nodes = await self.collection.find(connection_query).to_list(first + 1)
+
+        has_next_page = False
+        has_previous_page = False
+
+        if len(nodes) > first:
+            has_next_page = True
+            nodes.pop()
+
+        if after:
+            has_previous_page = True
+
+        Edge[TDocument].update_forward_refs()
+
+        page_info = PageInfo(
+            has_next_page=has_next_page, has_previous_page=has_previous_page
+        )
+        edges = [
+            Edge[TDocument](node=self.Document.parse_obj(raw), cursor="")
+            for raw in nodes
+        ]
+        return Connection[TDocument](edges=edges, page_info=page_info)
 
     async def create_one(self, document: Dict[str, Any]) -> TDocument:
         """Create a new document"""
@@ -166,10 +207,12 @@ class Collection(Generic[TDocument]):
         original_document = await self.find_one(query)
 
         if not original_document:
-            raise Exception('Does not exist')
+            raise Exception("Does not exist")
 
         # Copy does not perform validation
-        updated_dict = original_document.copy(update=update, deep=True).dict(by_alias=True)
+        updated_dict = original_document.copy(update=update, deep=True).dict(
+            by_alias=True
+        )
         updated_document = self.Document.parse_obj(updated_dict)
 
         original_dict = original_document.dict(by_alias=True)
@@ -185,9 +228,9 @@ class Collection(Generic[TDocument]):
             now = datetime.utcnow()
             # Keep same precision as mongo
             now = now.replace(microsecond=int(round(now.microsecond, -3)))
-            updated_values['updated_at'] = updated_document.updated_at = now
+            updated_values["updated_at"] = updated_document.updated_at = now
             await self.collection.update_one(
-                {'id': original_document.id}, update={'$set': updated_values}
+                {"id": original_document.id}, update={"$set": updated_values}
             )
 
         return updated_document

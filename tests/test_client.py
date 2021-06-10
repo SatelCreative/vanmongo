@@ -1,8 +1,9 @@
+from typing import List, Optional
+
 import pytest
-from typing import Optional
 from pydantic import BaseModel
 
-from satel_mongo import Client, BaseCollection, BaseDocument
+from satel_mongo import BaseCollection, BaseDocument, Client
 
 
 class Context(BaseModel):
@@ -65,8 +66,8 @@ async def test_find(test_config):
 
     items = Client().use(Item)
 
-    assert await items.find_one({}) == None
-    assert await items.find_one_by_id("fakeid") == None
+    assert await items.find_one({}) is None
+    assert await items.find_one_by_id("fakeid") is None
     assert await items.find_by_ids(["fakeid"]) == [None]
     assert [item async for item in items.find()] == []
 
@@ -75,6 +76,7 @@ async def test_find(test_config):
         item = await items.create_one({"index": index})
         created.append(item)
 
+    assert await items.find_one({"index": 4}) == created[4]
     assert await items.find_one({"index": 4}) == created[4]
     assert await items.find_one_by_id(created[0].id) == created[0]
     assert await items.find_one_by_id(created[9].id) == created[9]
@@ -105,11 +107,12 @@ async def test_update(test_config):
         item = await items.create_one({"index": index})
         created.append(item)
 
-    updated = await items.update_one({"index": 4}, {"description": "Hello there how are you?"})
+    updated = await items.update_one(
+        {"index": 4}, {"description": "Hello there how are you?"}
+    )
     assert updated.updated_at >= created[4].updated_at
     assert updated.description == "Hello there how are you?"
     assert await items.find_one_by_id(updated.id) == updated
-
 
 
 @pytest.mark.asyncio
@@ -124,37 +127,61 @@ async def test_multiple_documents(test_config):
         mongo_url=test_config.mongo_url, mongo_database=test_config.mongo_database
     )
 
-
     client = Client()
 
     products = client.use(Product)
     orders = client.use(Order)
 
-    product = await products.create_one({'title': 'tshirt'})
-    order = await orders.create_one({'number': 1})
+    product = await products.create_one({"title": "tshirt"})
+    order = await orders.create_one({"number": 1})
 
     assert await products.find_one_by_id(product.id) == product
     assert await orders.find_one_by_id(order.id) == order
 
     # Make sure they are in the correct collections
-    assert await client.db.products.find_one({"id": product.id}) != None
-    assert await client.db.orders.find_one({"id": order.id}) != None
+    assert await client.db.products.find_one({"id": product.id}) is not None
+    assert await client.db.orders.find_one({"id": order.id}) is not None
 
 
 @pytest.mark.asyncio
 async def test_extend_collection(test_config):
     class Item(BaseDocument):
         index: int
+
     class ItemCollection(BaseCollection[Item], document=Item):
         async def test(self):
-            return 'uniquevalue'
+            return "uniquevalue"
 
     await Client.initialize(
         mongo_url=test_config.mongo_url, mongo_database=test_config.mongo_database
     )
 
-    items =  Client().use(ItemCollection)
+    items = Client().use(ItemCollection)
 
     item = await items.create_one({"index": 1})
-    assert await items.test() == 'uniquevalue'
+    assert await items.test() == "uniquevalue"
     assert await items.find_one_by_id(item.id) == item
+
+
+def extract_nodes(connection):
+    return [edge.node for edge in connection.edges]
+
+
+@pytest.mark.asyncio
+async def test_find_connection(test_config):
+    class Item(BaseDocument):
+        index: int
+
+    await Client.initialize(
+        mongo_url=test_config.mongo_url, mongo_database=test_config.mongo_database
+    )
+
+    items = Client().use(Item)
+
+    created: List[Item] = []
+    for index in range(50):
+        item = await items.create_one({"index": index})
+        created.append(item)
+
+    connection = await items.find_connection(first=10)
+    assert extract_nodes(connection) == created[:10]
