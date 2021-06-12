@@ -21,6 +21,13 @@ def base64_decode_model(Model: Type[Model], value: str) -> Model:
 class MongoCursor(BaseModel):
     id: str
 
+    def base64_encode(self):
+        return base64_encode_model(self)
+
+    @classmethod
+    def base64_decode(cls, value: str):
+        return base64_decode_model(cls, value)
+
 
 class Edge(GenericModel, Generic[Node]):
     node: Node

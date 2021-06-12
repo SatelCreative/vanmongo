@@ -5,20 +5,19 @@ from typing import (
     TYPE_CHECKING,
     Any,
     AsyncGenerator,
-    ClassVar,
     Dict,
     Generic,
     List,
     Optional,
     Type,
     TypeVar,
-    overload,
 )
+from bson.objectid import ObjectId
 
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field
 
-# from pymongo import ASCENDING, DESCENDING
+from pymongo import ASCENDING, DESCENDING
 from shortuuid import ShortUUID
 
 from .connection import Connection, Edge, MongoCursor, PageInfo
@@ -80,11 +79,21 @@ class Collection(Generic[TDocument]):
         if not first:
             raise NotImplementedError()
 
-        connection_query = query or {}
+        connection_query = {}
         if after:
-            raise NotImplementedError()
+            cursor = MongoCursor.base64_decode(after)
+            object_id = ObjectId(cursor.id)
+            connection_query = {'_id': {'$gt': object_id}}
 
-        nodes = await self.collection.find(connection_query).to_list(first + 1)
+        if query:
+            connection_query = {
+                '$and': [
+                    connection_query,
+                    query,
+                ]
+            }
+
+        nodes = await self.collection.find(connection_query).sort([('_id', ASCENDING)]).to_list(first + 1)
 
         has_next_page = False
         has_previous_page = False
@@ -104,7 +113,7 @@ class Collection(Generic[TDocument]):
         edges: List[Edge[TDocument]] = []
         for raw in nodes:
             node = self.Document.parse_obj(raw)
-            cursor = f"{node.object_id}"
+            cursor = MongoCursor(id=f'{node.object_id}').base64_encode()
             edges.append(Edge[TDocument](node=node, cursor=cursor))
 
         return Connection[TDocument](edges=edges, page_info=page_info)
@@ -114,7 +123,7 @@ class Collection(Generic[TDocument]):
 
         now = datetime.utcnow()
         # Keep same precision as mongo
-        now = now.replace(microsecond=int(round(now.microsecond, -3)))
+        now = now.replace(microsecond=int(round(now.microsecond, -3) % 1000000))
 
         document.update(
             {
@@ -159,7 +168,7 @@ class Collection(Generic[TDocument]):
         if updated_values:
             now = datetime.utcnow()
             # Keep same precision as mongo
-            now = now.replace(microsecond=int(round(now.microsecond, -3)))
+            now = now.replace(microsecond=int(round(now.microsecond, -3) % 1000000))
             updated_values["updated_at"] = updated_document.updated_at = now
             await self.collection.update_one(
                 {"id": original_document.id}, update={"$set": updated_values}
