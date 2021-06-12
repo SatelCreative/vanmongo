@@ -74,7 +74,6 @@ class Collection(Generic[TDocument]):
         after: Optional[str] = None,
         last: Optional[int] = None,
         before: Optional[str] = None,
-        query: Optional[Dict[str, Any]] = None,
     ):
         if not first:
             raise NotImplementedError()
@@ -85,13 +84,6 @@ class Collection(Generic[TDocument]):
             object_id = ObjectId(cursor.id)
             connection_query = {'_id': {'$gt': object_id}}
 
-        if query:
-            connection_query = {
-                '$and': [
-                    connection_query,
-                    query,
-                ]
-            }
 
         nodes = await self.collection.find(connection_query).sort([('_id', ASCENDING)]).to_list(first + 1)
 
