@@ -101,7 +101,9 @@ class Collection(Generic[TDocument]):
             object_id = ObjectId(cursor.id)
             connection_query = {"_id": {"$gt": object_id}}
 
-        cursor = self.find(query=connection_query, sort=sort, reverse=reverse, limit=first + 1)
+        cursor = self.find(
+            query=connection_query, sort=sort, reverse=reverse, limit=first + 1
+        )
         nodes = [node async for node in cursor]
 
         has_next_page = False
