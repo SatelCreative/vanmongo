@@ -1,9 +1,9 @@
-from typing import List, Optional
+from typing import Optional
 
 import pytest
 from pydantic import BaseModel
 
-from satel_mongo import BaseCollection, BaseDocument, Client
+from satel_mongo import BaseDocument, Client
 
 
 class Context(BaseModel):

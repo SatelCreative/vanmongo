@@ -12,12 +12,10 @@ from typing import (
     Type,
     TypeVar,
 )
+
 from bson.objectid import ObjectId
-
-from motor.motor_asyncio import AsyncIOMotorClient
-from pydantic import BaseModel, Field
-
-from pymongo import ASCENDING, DESCENDING
+from pydantic import BaseModel
+from pymongo import ASCENDING
 from shortuuid import ShortUUID
 
 from .connection import Connection, Edge, MongoCursor, PageInfo
@@ -82,10 +80,13 @@ class Collection(Generic[TDocument]):
         if after:
             cursor = MongoCursor.base64_decode(after)
             object_id = ObjectId(cursor.id)
-            connection_query = {'_id': {'$gt': object_id}}
+            connection_query = {"_id": {"$gt": object_id}}
 
-
-        nodes = await self.collection.find(connection_query).sort([('_id', ASCENDING)]).to_list(first + 1)
+        nodes = (
+            await self.collection.find(connection_query)
+            .sort([("_id", ASCENDING)])
+            .to_list(first + 1)
+        )
 
         has_next_page = False
         has_previous_page = False
@@ -105,7 +106,7 @@ class Collection(Generic[TDocument]):
         edges: List[Edge[TDocument]] = []
         for raw in nodes:
             node = self.Document.parse_obj(raw)
-            cursor = MongoCursor(id=f'{node.object_id}').base64_encode()
+            cursor = MongoCursor(id=f"{node.object_id}").base64_encode()
             edges.append(Edge[TDocument](node=node, cursor=cursor))
 
         return Connection[TDocument](edges=edges, page_info=page_info)
@@ -133,6 +134,8 @@ class Collection(Generic[TDocument]):
 
         inserted_result = await self.collection.insert_one(doc_dict)
         doc.object_id = inserted_result.inserted_id  # Add generated _id
+
+        await self.Document._trigger_create(doc, context=self.client.context)
 
         return doc
 

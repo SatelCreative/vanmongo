@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from base64 import b64decode, b64encode
-from typing import TYPE_CHECKING, Generic, List, Type, TypeVar
+from typing import Generic, List, Type, TypeVar
 
 from pydantic import BaseModel
 from pydantic.generics import GenericModel

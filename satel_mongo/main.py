@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime
 from typing import (
     Any,
-    AsyncGenerator,
     ClassVar,
     Dict,
     Generic,
-    List,
     Optional,
     Type,
     TypeVar,
@@ -15,10 +12,7 @@ from typing import (
 )
 
 from motor.motor_asyncio import AsyncIOMotorClient
-from pydantic import BaseModel, Field
-
-# from pymongo import ASCENDING, DESCENDING
-from shortuuid import ShortUUID
+from pydantic import BaseModel
 
 from .collection import Collection
 from .document import BaseDocument as InternalBaseDocument
