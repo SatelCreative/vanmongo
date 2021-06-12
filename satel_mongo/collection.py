@@ -92,12 +92,19 @@ class Collection(Generic[TDocument]):
         sort: Optional[str] = None,
         reverse: bool = False,
     ):
-        if not first:
-            raise NotImplementedError()
+        page_size = first or last
+        if not page_size:
+            raise Exception("Must provide one of first or last")
+        raw_cursor = before if last else after
+        if last and not raw_cursor:
+            raise Exception("Must provide last and before")
 
-        connection_query = {}
-        if after:
-            cursor = MongoCursor.base64_decode(after)
+        if not first:
+            reverse = not reverse
+
+        connection_query: Dict[str, Any] = {}
+        if raw_cursor:
+            cursor = MongoCursor.base64_decode(raw_cursor)
             object_id = ObjectId(cursor.id)
             op = "$lt" if reverse else "$gt"
             connection_query = {"_id": {op: object_id}}
@@ -113,19 +120,24 @@ class Collection(Generic[TDocument]):
                 }
 
         cursor = self.find(
-            query=connection_query, sort=sort, reverse=reverse, limit=first + 1
+            query=connection_query, sort=sort, reverse=reverse, limit=page_size + 1
         )
         nodes = [node async for node in cursor]
 
         has_next_page = False
         has_previous_page = False
 
-        if len(nodes) > first:
-            has_next_page = True
+        extra_node = len(nodes) > page_size
+        if extra_node:
             nodes.pop()
 
-        if after:
-            has_previous_page = True
+        if first:
+            has_next_page = extra_node
+            has_previous_page = bool(after)
+        if before:
+            nodes.reverse()
+            has_next_page = True
+            has_previous_page = extra_node
 
         Edge[TDocument].update_forward_refs()
 
@@ -135,7 +147,9 @@ class Collection(Generic[TDocument]):
         edges: List[Edge[TDocument]] = []
         for node in nodes:
             cursor = MongoCursor(
-                id=f"{node.object_id}", sort=sort, value=node[sort] if sort else None
+                id=f"{node.object_id}",
+                sort=sort,
+                value=getattr(node, sort, None) if sort else None,
             ).base64_encode()
             edges.append(Edge[TDocument](node=node, cursor=cursor))
 
