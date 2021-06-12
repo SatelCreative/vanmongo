@@ -46,7 +46,7 @@ class Client(Generic[TContext]):
 
         # Setup indexes
 
-        # TODO
+        # TODO only create indexes that don't already exist
         for key, doc in cls.__documents.items():
             collection = db[key]
 

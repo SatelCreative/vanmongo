@@ -89,6 +89,8 @@ class Collection(Generic[TDocument]):
         after: Optional[str] = None,
         last: Optional[int] = None,
         before: Optional[str] = None,
+        sort: Optional[str] = None,
+        reverse: bool = False,
     ):
         if not first:
             raise NotImplementedError()
@@ -99,11 +101,8 @@ class Collection(Generic[TDocument]):
             object_id = ObjectId(cursor.id)
             connection_query = {"_id": {"$gt": object_id}}
 
-        nodes = (
-            await self.collection.find(connection_query)
-            .sort([("_id", ASCENDING)])
-            .to_list(first + 1)
-        )
+        cursor = self.find(query=connection_query, sort=sort, reverse=reverse, limit=first + 1)
+        nodes = [node async for node in cursor]
 
         has_next_page = False
         has_previous_page = False
@@ -121,8 +120,7 @@ class Collection(Generic[TDocument]):
             has_next_page=has_next_page, has_previous_page=has_previous_page
         )
         edges: List[Edge[TDocument]] = []
-        for raw in nodes:
-            node = self.Document.parse_obj(raw)
+        for node in nodes:
             cursor = MongoCursor(id=f"{node.object_id}").base64_encode()
             edges.append(Edge[TDocument](node=node, cursor=cursor))
 
