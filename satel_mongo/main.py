@@ -1,15 +1,6 @@
 from __future__ import annotations
 
-from typing import (
-    Any,
-    ClassVar,
-    Dict,
-    Generic,
-    Optional,
-    Type,
-    TypeVar,
-    overload,
-)
+from typing import Any, ClassVar, Dict, Generic, List, Optional, Type, TypeVar, overload
 
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
@@ -61,6 +52,9 @@ class Client(Generic[TContext]):
 
             await collection.create_index("id", name="id")
 
+            for sort_key in doc._sort_options:
+                await collection.create_index([(sort_key, 1), ('_id', 1)], name=f'sort_{sort_key}')
+
     @classmethod
     async def shutdown(cls):
         cls.__client = NotImplemented
@@ -68,7 +62,8 @@ class Client(Generic[TContext]):
         cls.config = NotImplemented
 
     @classmethod
-    def _register_document(cls, key: str, Document: Type[TDocument]):
+    def _register_document(cls, Document: Type[TDocument]):
+        key = Document._collection
         if key in cls.__documents:
             raise Exception(f'Document with collection "{key}" already exists')
         cls.__documents[key] = Document
@@ -115,18 +110,32 @@ class BaseCollection(Generic[TDocument], Collection[TDocument]):
         cls.__document = document
 
 
+DEFAULT_SORT_OPTIONS = ["updated_at", "created_at"]
+
+
 class BaseDocument(InternalBaseDocument):
     """BaseDocument"""
 
-    def __init_subclass__(cls, *args, collection: Optional[str] = None, **kwargs):
+    def __init_subclass__(
+        cls,
+        *args,
+        collection: Optional[str] = None,
+        sort_options: Optional[List[str]] = None,
+        **kwargs,
+    ):
 
         # NOTE: known issue in mypy
         # https://github.com/python/mypy/issues/4660
         super().__init_subclass__(*args, **kwargs)  # type: ignore
 
         if collection:
-            cls.collection = collection
+            cls._collection = collection
         else:
-            cls.collection = f"{cls.__name__.lower()}s"
+            cls._collection = f"{cls.__name__.lower()}s"
 
-        Client._register_document(cls.collection, cls)
+        if sort_options:
+            cls._sort_options = sort_options + DEFAULT_SORT_OPTIONS
+        else:
+            cls._sort_options = DEFAULT_SORT_OPTIONS.copy()
+
+        Client._register_document(cls)

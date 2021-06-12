@@ -15,7 +15,7 @@ from typing import (
 
 from bson.objectid import ObjectId
 from pydantic import BaseModel
-from pymongo import ASCENDING
+from pymongo import ASCENDING, DESCENDING
 from shortuuid import ShortUUID
 
 from .connection import Connection, Edge, MongoCursor, PageInfo
@@ -35,7 +35,9 @@ class Collection(Generic[TDocument]):
     Document: Type[TDocument]
 
     def __init__(self, client: Client, Document: Type[TDocument]):
-        if Document.collection == NotImplemented:
+        if Document._collection == NotImplemented:
+            raise Exception("invalid Document")
+        if Document._sort_options == NotImplemented:
             raise Exception("invalid Document")
 
         self.client = client
@@ -43,7 +45,7 @@ class Collection(Generic[TDocument]):
 
     @property
     def collection(self):
-        return self.client.db[self.Document.collection]
+        return self.client.db[self.Document._collection]
 
     async def find_one(self, query: Dict[str, Any]) -> Optional[TDocument]:
         raw = await self.collection.find_one(query)
@@ -53,9 +55,24 @@ class Collection(Generic[TDocument]):
         return await self.find_one({"id": id})
 
     async def find(
-        self, query: Dict[str, Any] = {}, batch_size=100
+        self,
+        query: Dict[str, Any] = {},
+        limit: Optional[int] = None,
+        sort: Optional[str] = None,
+        reverse: bool = False,
+        batch_size=100,
     ) -> AsyncGenerator[TDocument, None]:
         cursor = self.collection.find(query, batch_size=batch_size)
+
+        direction = DESCENDING if reverse else ASCENDING
+        mongo_sort = [("_id", direction)]
+        if sort:
+            mongo_sort = [(sort, direction)] + mongo_sort
+        cursor.sort(mongo_sort)
+
+        if limit:
+            cursor.limit(limit)
+
         async for raw in cursor:
             yield self.Document.parse_obj(raw)
 
