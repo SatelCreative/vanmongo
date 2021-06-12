@@ -56,7 +56,7 @@ class Collection(Generic[TDocument]):
 
     async def find(
         self,
-        query: Dict[str, Any] = {},
+        query: Dict[str, Any] = {},  # TODO rename (gets confusing with search)
         limit: Optional[int] = None,
         sort: Optional[str] = None,
         reverse: bool = False,
@@ -99,7 +99,18 @@ class Collection(Generic[TDocument]):
         if after:
             cursor = MongoCursor.base64_decode(after)
             object_id = ObjectId(cursor.id)
-            connection_query = {"_id": {"$gt": object_id}}
+            op = "$lt" if reverse else "$gt"
+            connection_query = {"_id": {op: object_id}}
+
+            if cursor.sort and cursor.value and cursor.sort == sort:
+                connection_query = {
+                    "$or": [
+                        {cursor.sort: {op: cursor.value}},
+                        # Need secondary comparison for correct pagination
+                        # when primary comparison has duplicate values
+                        {cursor.sort: cursor.value, "_id": connection_query["_id"]},
+                    ]
+                }
 
         cursor = self.find(
             query=connection_query, sort=sort, reverse=reverse, limit=first + 1
@@ -123,7 +134,9 @@ class Collection(Generic[TDocument]):
         )
         edges: List[Edge[TDocument]] = []
         for node in nodes:
-            cursor = MongoCursor(id=f"{node.object_id}").base64_encode()
+            cursor = MongoCursor(
+                id=f"{node.object_id}", sort=sort, value=node[sort] if sort else None
+            ).base64_encode()
             edges.append(Edge[TDocument](node=node, cursor=cursor))
 
         return Connection[TDocument](edges=edges, page_info=page_info)

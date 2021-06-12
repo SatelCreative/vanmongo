@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from base64 import b64decode, b64encode
-from typing import Generic, List, Type, TypeVar
+from typing import Generic, List, Optional, Type, TypeVar
 
 from pydantic import BaseModel
 from pydantic.generics import GenericModel
@@ -11,7 +11,7 @@ Model = TypeVar("Model", bound=BaseModel)
 
 
 def base64_encode_model(model: Model) -> str:
-    return b64encode(model.json().encode()).decode()
+    return b64encode(model.json(exclude_none=True).encode()).decode()
 
 
 def base64_decode_model(Model: Type[Model], value: str) -> Model:
@@ -20,6 +20,8 @@ def base64_decode_model(Model: Type[Model], value: str) -> Model:
 
 class MongoCursor(BaseModel):
     id: str
+    sort: Optional[str] = None
+    value: Optional[str] = None
 
     def base64_encode(self):
         return base64_encode_model(self)

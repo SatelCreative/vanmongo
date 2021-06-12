@@ -27,15 +27,24 @@ async def test_simple_connection(test_config):
 
     items = Client().use(Item)
 
-    created: List[Item] = []
+    fixture: List[Item] = []
     for index in range(50):
         item = await items.create_one({"index": index})
-        created.append(item)
+        fixture.append(item)
+    reversed_fixture = fixture[::-1]
 
     first_page = await items.find_connection(first=10)
-    assert extract_nodes(first_page) == created[:10]
+    assert extract_nodes(first_page) == fixture[:10]
 
     second_page = await items.find_connection(
         first=10, after=extract_last_cursor(first_page)
     )
-    assert extract_nodes(second_page) == created[10:20]
+    assert extract_nodes(second_page) == fixture[10:20]
+
+    reversed_first_page = await items.find_connection(first=10, reverse=True)
+    assert extract_nodes(reversed_first_page) == reversed_fixture[:10]
+
+    reversed_second_page = await items.find_connection(
+        first=10, after=extract_last_cursor(reversed_first_page), reverse=True
+    )
+    assert extract_nodes(reversed_second_page) == reversed_fixture[10:20]
