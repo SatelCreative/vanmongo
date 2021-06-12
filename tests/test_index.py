@@ -1,5 +1,3 @@
-from typing import List
-
 import pytest
 
 from satel_mongo import BaseDocument, Client
@@ -35,7 +33,7 @@ async def test_indexes(db, test_config):
 
 @pytest.mark.asyncio
 async def test_sort_indexes(db, test_config):
-    sort_options = ['index']
+    sort_options = ["index"]
 
     class Item(BaseDocument, sort_options=sort_options):
         index: int

@@ -53,7 +53,9 @@ class Client(Generic[TContext]):
             await collection.create_index("id", name="id")
 
             for sort_key in doc._sort_options:
-                await collection.create_index([(sort_key, 1), ('_id', 1)], name=f'sort_{sort_key}')
+                await collection.create_index(
+                    [(sort_key, 1), ("_id", 1)], name=f"sort_{sort_key}"
+                )
 
     @classmethod
     async def shutdown(cls):
@@ -110,7 +112,7 @@ class BaseCollection(Generic[TDocument], Collection[TDocument]):
         cls.__document = document
 
 
-DEFAULT_SORT_OPTIONS = ["updated_at", "created_at"]
+DEFAULT_SORT_OPTIONS: List[str] = ["updated_at", "created_at"]
 
 
 class BaseDocument(InternalBaseDocument):
