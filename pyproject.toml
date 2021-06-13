@@ -10,6 +10,9 @@ python = "^3.9"
 pydantic = "^1.8.2"
 motor = "^2.4.0"
 shortuuid = "^1.0.1"
+aiodataloader = "^0.2.0"
+aiostream = "^0.4.3"
+async-search-client = "^0.8.0"
 
 [tool.poetry.dev-dependencies]
 mypy = "^0.812"

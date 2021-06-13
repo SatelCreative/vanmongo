@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from asyncio import gather
 from typing import Any, ClassVar, Dict, Generic, List, Optional, Type, TypeVar, overload
 
+from aiodataloader import DataLoader
+from aiostream import stream
+from async_search_client import Client as SearchClient
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel
 
@@ -20,11 +24,30 @@ class Config(BaseModel):
     meilsearch_key: Optional[str] = None
 
 
+def create_find_by_ids(db, doc):
+    async def find_by_ids(ids):
+        documents = {}
+        async for raw in db[doc._collection].find({"$or": [{"id": i} for i in ids]}):
+            document = doc.parse_obj(raw)
+            documents[document.id] = document
+        return [documents.get(i) for i in ids]
+
+    return find_by_ids
+
+
+def default_make(instance: TDocument):
+    if not instance._search_fields:
+        raise AssertionError()
+    return instance.dict(include=set(["id"] + instance._search_fields))
+
+
 class Client(Generic[TContext]):
     """Client"""
 
     __client: ClassVar[Any] = NotImplemented
+    __search: ClassVar[Any] = NotImplemented
     __documents: ClassVar[Dict[str, Type[BaseDocument]]] = {}
+    __loaders: Any = NotImplemented
     config: ClassVar[Config] = NotImplemented
     context: Optional[TContext] = None
 
@@ -34,15 +57,13 @@ class Client(Generic[TContext]):
 
         self.context = context
 
-    @classmethod
-    async def initialize(cls, mongo_url: str = None, mongo_database: str = None):
-        cls.config = Config(
-            mongo_url=mongo_url,
-            mongo_database=mongo_database,
-        )
-        cls.__client = AsyncIOMotorClient(cls.config.mongo_url)
+        self.__loaders = {}
+        for key, doc in self.__documents.items():
+            self.__loaders[key] = DataLoader(create_find_by_ids(self.db, doc))
 
-        db = cls.__client[mongo_database]
+    @classmethod
+    async def __mongo_setup_indexes(cls):
+        db = cls.__client[cls.config.mongo_database]
 
         # Setup indexes
 
@@ -56,6 +77,61 @@ class Client(Generic[TContext]):
                 await collection.create_index(
                     [(sort_key, 1), ("_id", 1)], name=f"sort_{sort_key}"
                 )
+
+    @classmethod
+    async def __search_setup_indexes(cls):
+        search = cls.__search
+
+        for key, doc in cls.__documents.items():
+            if not doc._search_fields:
+                continue
+
+            index = await search.get_or_create_index(key)
+            items = cls().use(doc)
+
+            async with stream.chunks(items.find(), 50).stream() as chunks:
+                async for chunk in chunks:
+                    items_futures = []
+
+                    for n in chunk:
+                        items_futures.append(default_make(n))
+
+                    items = await gather(*items_futures)
+
+                    await index.update_documents(items)
+
+            # Set up listener
+            async def test(type, item, context=None):
+                await index.update_documents([default_make(item)])
+
+            doc.on_change(test)
+
+    @classmethod
+    async def initialize(
+        cls,
+        mongo_url: str = None,
+        mongo_database: str = None,
+        meilsearch_url: Optional[str] = None,
+        meilsearch_key: Optional[str] = None,
+    ):
+        cls.config = Config(
+            mongo_url=mongo_url,
+            mongo_database=mongo_database,
+            meilsearch_url=meilsearch_url,
+            meilsearch_key=meilsearch_key,
+        )
+        cls.__client = AsyncIOMotorClient(cls.config.mongo_url)
+
+        # Setup mongo indexes
+        await cls.__mongo_setup_indexes()
+
+        # Setup search
+        if cls.config.meilsearch_url:
+            cls.__search = SearchClient(
+                cls.config.meilsearch_url, cls.config.meilsearch_key
+            )
+
+            await cls.__search_setup_indexes()
 
     @classmethod
     async def shutdown(cls):
@@ -73,6 +149,16 @@ class Client(Generic[TContext]):
     @property
     def db(self):
         return self.__client[self.config.mongo_database]
+
+    @property
+    def search(self):
+        if not self.__search:
+            raise Exception("Search has not been initialized")
+        return self.__search
+
+    @property
+    def loaders(self):
+        return self.__loaders
 
     @overload
     def use(
@@ -123,12 +209,13 @@ class BaseDocument(InternalBaseDocument):
         *args,
         collection: Optional[str] = None,
         sort_options: Optional[List[str]] = None,
+        search: Optional[List[str]] = None,
         **kwargs,
     ):
-
         # NOTE: known issue in mypy
         # https://github.com/python/mypy/issues/4660
         super().__init_subclass__(*args, **kwargs)  # type: ignore
+        cls.__events = []
 
         if collection:
             cls._collection = collection
@@ -139,5 +226,7 @@ class BaseDocument(InternalBaseDocument):
             cls._sort_options = sort_options + DEFAULT_SORT_OPTIONS
         else:
             cls._sort_options = DEFAULT_SORT_OPTIONS.copy()
+
+        cls._search_fields = search
 
         Client._register_document(cls)

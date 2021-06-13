@@ -5,12 +5,14 @@ from typing import (
     TYPE_CHECKING,
     Any,
     AsyncGenerator,
+    Coroutine,
     Dict,
     Generic,
     List,
     Optional,
     Type,
     TypeVar,
+    cast,
 )
 
 from bson.objectid import ObjectId
@@ -18,7 +20,7 @@ from pydantic import BaseModel
 from pymongo import ASCENDING, DESCENDING
 from shortuuid import ShortUUID
 
-from .connection import Connection, Edge, MongoCursor, PageInfo
+from .connection import Connection, Edge, MeilCursor, MongoCursor, PageInfo
 from .document import BaseDocument
 
 if TYPE_CHECKING:
@@ -46,6 +48,22 @@ class Collection(Generic[TDocument]):
     @property
     def collection(self):
         return self.client.db[self.Document._collection]
+
+    @property
+    def index(self):
+        return self.client.search.index(self.Document._collection)
+
+    @property
+    def loader(self):
+        return self.client.loaders[self.Document._collection]
+
+    def load_one(self, id: str) -> Coroutine[Any, Any, Optional[TDocument]]:
+        return cast(Coroutine[Any, Any, Optional[TDocument]], self.loader.load(id))
+
+    def load(self, ids: List[str]) -> Coroutine[Any, Any, List[Optional[TDocument]]]:
+        return cast(
+            Coroutine[Any, Any, List[Optional[TDocument]]], self.loader.load_many(ids)
+        )
 
     async def find_one(self, query: Dict[str, Any]) -> Optional[TDocument]:
         raw = await self.collection.find_one(query)
@@ -83,7 +101,7 @@ class Collection(Generic[TDocument]):
             documents[document.id] = document
         return [documents.get(i) for i in ids]
 
-    async def find_connection(
+    async def __mongo_find_connection(
         self,
         first: Optional[int] = None,
         after: Optional[str] = None,
@@ -97,7 +115,7 @@ class Collection(Generic[TDocument]):
             raise Exception("Must provide one of first or last")
         raw_cursor = before if last else after
         if last and not raw_cursor:
-            raise Exception("Must provide last and before")
+            raise Exception("Must provide both last and before")
 
         if not first:
             reverse = not reverse
@@ -154,6 +172,83 @@ class Collection(Generic[TDocument]):
             edges.append(Edge[TDocument](node=node, cursor=cursor))
 
         return Connection[TDocument](edges=edges, page_info=page_info)
+
+    async def __meil_find_connection(
+        self,
+        query: Optional[str] = None,
+        first: Optional[int] = None,
+        after: Optional[str] = None,
+        last: Optional[int] = None,
+        before: Optional[str] = None,
+    ):
+        page_size = first or last
+        if not page_size:
+            raise Exception("Must provide one of first or last")
+        raw_cursor = before if last else after
+        if last and not raw_cursor:
+            raise Exception("Must provide both last and before")
+
+        offset = 0
+        limit = page_size
+        if raw_cursor:
+            cursor = MeilCursor.base64_decode(raw_cursor)
+
+            if cursor.query != query:
+                raise Exception("Invalid cursor")
+
+            if after:
+                offset = cursor.offset + 1
+            if before:
+                offset = max(cursor.offset - last, 0)
+                limit = min(limit, cursor.offset)
+
+        index = self.index
+        result = await index.search(
+            query,
+            attributes_to_retrieve=["id"],
+            limit=page_size,
+            offset=offset,
+        )
+
+        nodes = await self.load([cast(str, hit["id"]) for hit in result.hits])
+
+        Edge[TDocument].update_forward_refs()
+
+        page_info = PageInfo(
+            has_next_page=offset + limit < result.nb_hits, has_previous_page=offset != 0
+        )
+        edges: List[Edge[TDocument]] = []
+        for i, node in enumerate(nodes):
+            cursor = MeilCursor(offset=offset + i, query=query).base64_encode()
+            edges.append(Edge[TDocument](node=node, cursor=cursor))
+        return Connection[TDocument](edges=edges, page_info=page_info)
+
+    async def find_connection(
+        self,
+        query: Optional[str] = None,
+        first: Optional[int] = None,
+        after: Optional[str] = None,
+        last: Optional[int] = None,
+        before: Optional[str] = None,
+        sort: Optional[str] = None,
+        reverse: bool = False,
+    ):
+        if query:
+            return await self.__meil_find_connection(
+                query=query,
+                first=first,
+                after=after,
+                last=last,
+                before=before,
+            )
+        return await self.__mongo_find_connection(
+            first=first,
+            after=after,
+            last=last,
+            before=before,
+            sort=sort,
+            reverse=reverse,
+        )
 
     async def create_one(self, document: Dict[str, Any]) -> TDocument:
         """Create a new document"""

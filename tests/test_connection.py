@@ -122,3 +122,56 @@ async def test_sort_connection(test_config):
         reverse=True,
     )
     assert extract_nodes(reversed_index_second_page) == fixture[10:20]
+
+
+@pytest.mark.asyncio
+async def test_search_connection(test_config, wait_for_index):
+    class Product(BaseDocument, search=["title"]):
+        title: str
+
+    await Client.initialize(
+        mongo_url=test_config.mongo_url,
+        mongo_database=test_config.mongo_database,
+        meilsearch_url=test_config.meilsearch_url,
+    )
+
+    products = Client().use(Product)
+
+    fixture: List[Product] = []
+    for index in range(50):
+        product = await products.create_one({"title": f"pants {index}"})
+        fixture.append(product)
+
+    await wait_for_index("products")
+
+    first_page = await products.find_connection(first=10, query="pants")
+    assert extract_nodes(first_page) == fixture[:10]
+    assert_page_info(first_page, has_next_page=True)
+
+    second_page = await products.find_connection(
+        first=10, after=extract_last_cursor(first_page), query="pants"
+    )
+    assert extract_nodes(second_page) == fixture[10:20]
+    assert_page_info(second_page, has_next_page=True, has_previous_page=True)
+
+    last_page = await products.find_connection(
+        first=30, after=extract_last_cursor(second_page), query="pants"
+    )
+    assert extract_nodes(last_page) == fixture[20:]
+    assert_page_info(last_page, has_previous_page=True)
+
+    before_first_page = await products.find_connection(
+        last=10, before=extract_first_cursor(second_page), query="pants"
+    )
+    assert extract_nodes(before_first_page) == fixture[:10]
+    assert_page_info(before_first_page, has_next_page=True)
+
+    before_last_page = await products.find_connection(
+        last=30, before=extract_last_cursor(last_page), query="pants"
+    )
+    assert extract_nodes(before_last_page) == fixture[19:49]
+    assert_page_info(before_last_page, has_next_page=True, has_previous_page=True)
+
+    short_page = await products.find_connection(first=10, query="pants 23")
+    assert extract_nodes(short_page) == [fixture[23]]
+    assert_page_info(short_page)

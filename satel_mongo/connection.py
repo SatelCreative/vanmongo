@@ -31,6 +31,18 @@ class MongoCursor(BaseModel):
         return base64_decode_model(cls, value)
 
 
+class MeilCursor(BaseModel):
+    offset: int
+    query: str
+
+    def base64_encode(self):
+        return base64_encode_model(self)
+
+    @classmethod
+    def base64_decode(cls, value: str):
+        return base64_decode_model(cls, value)
+
+
 class Edge(GenericModel, Generic[Node]):
     node: Node
     cursor: str
