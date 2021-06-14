@@ -1,6 +1,16 @@
 from datetime import datetime
 from inspect import isawaitable
-from typing import Any, ClassVar, List, Optional, Type, TypeVar, cast
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    Coroutine,
+    List,
+    Optional,
+    Type,
+    TypeVar,
+    cast,
+)
 
 from pydantic import BaseModel, Field
 
@@ -30,7 +40,10 @@ class BaseDocument(BaseModel):
     created_at: datetime
 
     @classmethod
-    def on_change(cls: Type[TDocument], handler: ChangeHandler[TDocument]):
+    def on_change(
+        cls: Type[TDocument],
+        handler: Callable[[EventType, TDocument], Coroutine[Any, Any, None]],
+    ):
         cls.__events.append(
             RegisteredChangeEvent(type=EventType.CHANGE, handler=handler)
         )
@@ -42,5 +55,15 @@ class BaseDocument(BaseModel):
             if registered_handler.type == EventType.CHANGE:
                 handler = cast(ChangeHandler, registered_handler.handler)
                 result = handler(EventType.CREATE, value, context=context)
+            if result and isawaitable(result):
+                await result
+
+    @classmethod
+    async def _trigger_update(cls: Type[TDocument], value: TDocument, context=None):
+        for registered_handler in cls.__events:
+            result = None
+            if registered_handler.type == EventType.CHANGE:
+                handler = cast(ChangeHandler, registered_handler.handler)
+                result = handler(EventType.UPDATE, value, context=context)
             if result and isawaitable(result):
                 await result

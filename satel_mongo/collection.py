@@ -308,6 +308,10 @@ class Collection(Generic[TDocument]):
                 {"id": original_document.id}, update={"$set": updated_values}
             )
 
+            await self.Document._trigger_update(
+                updated_document, context=self.client.context
+            )
+
         return updated_document
 
     async def update_one_by_id(self, id: str, update: Dict[str, Any] = {}):
