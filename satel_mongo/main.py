@@ -35,7 +35,7 @@ def create_find_by_ids(db, doc):
     return find_by_ids
 
 
-def default_make(instance: TDocument):
+async def default_make(instance: TDocument):
     if not instance._search_fields:
         raise AssertionError()
     return instance.dict(include=set(["id"] + instance._search_fields))
@@ -93,6 +93,8 @@ class Client(Generic[TContext]):
                 async for chunk in chunks:
                     items_futures = []
 
+                    # TODO support sync or async
+
                     for n in chunk:
                         items_futures.append(default_make(n))
 
@@ -100,9 +102,11 @@ class Client(Generic[TContext]):
 
                     await index.update_documents(items)
 
+            # TODO make this not terrible
+
             # Set up listener
             async def test(type, item, context=None):
-                await index.update_documents([default_make(item)])
+                await index.update_documents([await default_make(item)])
 
             doc.on_change(test)
 
@@ -135,8 +139,13 @@ class Client(Generic[TContext]):
 
     @classmethod
     async def shutdown(cls):
+        if cls.__search != NotImplemented:
+            await cls.__search.aclose()
+
         cls.__client = NotImplemented
+        cls.__search = NotImplemented
         cls.__documents = {}
+        cls.__loaders = NotImplemented
         cls.config = NotImplemented
 
     @classmethod
