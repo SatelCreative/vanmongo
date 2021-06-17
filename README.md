@@ -1,4 +1,4 @@
-# mongo
+# Vincent VanMongo
 
 ## Installation
 
