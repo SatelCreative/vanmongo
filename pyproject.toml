@@ -30,3 +30,11 @@ multi_line_output = 3
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.flit.metadata]
+module = "vanmongo"
+author = "Quinn Blenkinsop"
+author-email = "quinn@blenkinsop.net"
+home-page = "https://github.com/SatelCreative/vanmongo"
+classifiers = [ "License :: OSI Approved :: MIT License",]
+description-file = "README.md"
