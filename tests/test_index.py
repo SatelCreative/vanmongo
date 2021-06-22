@@ -1,6 +1,6 @@
 import pytest
 
-from satel_mongo import BaseDocument, Client
+from vanmongo import BaseDocument, Client
 
 
 def assert_indexes(collection, **kwargs):

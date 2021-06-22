@@ -2,7 +2,7 @@ from typing import Any, List
 
 import pytest
 
-from satel_mongo import BaseDocument, Client, Connection
+from vanmongo import BaseDocument, Client, Connection
 
 
 def extract_nodes(connection: Connection[Any]):
@@ -23,9 +23,7 @@ def extract_last_cursor(connection: Connection[Any]) -> str:
     return connection.edges[-1].cursor
 
 
-def assert_page_info(
-    connection: Connection[Any], has_next_page=False, has_previous_page=False
-):
+def assert_page_info(connection: Connection[Any], has_next_page=False, has_previous_page=False):
     page_info = connection.page_info
 
     assert page_info.has_next_page == has_next_page
@@ -52,15 +50,11 @@ async def test_simple_connection(test_config):
     assert extract_nodes(first_page) == fixture[:10]
     assert_page_info(first_page, has_next_page=True)
 
-    second_page = await items.find_connection(
-        first=10, after=extract_last_cursor(first_page)
-    )
+    second_page = await items.find_connection(first=10, after=extract_last_cursor(first_page))
     assert extract_nodes(second_page) == fixture[10:20]
     assert_page_info(second_page, has_next_page=True, has_previous_page=True)
 
-    last_page = await items.find_connection(
-        first=30, after=extract_last_cursor(second_page)
-    )
+    last_page = await items.find_connection(first=30, after=extract_last_cursor(second_page))
     assert extract_nodes(last_page) == fixture[20:]
     assert_page_info(last_page, has_previous_page=True)
 
@@ -70,9 +64,7 @@ async def test_simple_connection(test_config):
     assert extract_nodes(before_first_page) == fixture[:10]
     assert_page_info(before_first_page, has_next_page=True)
 
-    before_last_page = await items.find_connection(
-        last=30, before=extract_last_cursor(last_page)
-    )
+    before_last_page = await items.find_connection(last=30, before=extract_last_cursor(last_page))
     assert extract_nodes(before_last_page) == fixture[19:49]
     assert_page_info(before_last_page, has_next_page=True, has_previous_page=True)
 
@@ -110,9 +102,7 @@ async def test_sort_connection(test_config):
     )
     assert extract_nodes(index_second_page) == reversed_fixture[10:20]
 
-    reversed_index_first_page = await items.find_connection(
-        first=10, sort="index", reverse=True
-    )
+    reversed_index_first_page = await items.find_connection(first=10, sort="index", reverse=True)
     assert extract_nodes(reversed_index_first_page) == fixture[:10]
 
     reversed_index_second_page = await items.find_connection(

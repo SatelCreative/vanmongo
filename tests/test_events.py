@@ -3,7 +3,7 @@ from typing import Any, List
 import pytest
 from pydantic import BaseModel
 
-from satel_mongo import BaseDocument, Client, EventType
+from vanmongo import BaseDocument, Client, EventType
 
 
 class Context(BaseModel):
