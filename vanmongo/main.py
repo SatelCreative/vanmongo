@@ -74,9 +74,7 @@ class Client(Generic[TContext]):
             await collection.create_index("id", name="id")
 
             for sort_key in doc._sort_options:
-                await collection.create_index(
-                    [(sort_key, 1), ("_id", 1)], name=f"sort_{sort_key}"
-                )
+                await collection.create_index([(sort_key, 1), ("_id", 1)], name=f"sort_{sort_key}")
 
     @classmethod
     async def __search_setup_indexes(cls):
@@ -131,9 +129,7 @@ class Client(Generic[TContext]):
 
         # Setup search
         if cls.config.meilsearch_url:
-            cls.__search = SearchClient(
-                cls.config.meilsearch_url, cls.config.meilsearch_key
-            )
+            cls.__search = SearchClient(cls.config.meilsearch_url, cls.config.meilsearch_key)
 
             await cls.__search_setup_indexes()
 
@@ -176,9 +172,7 @@ class Client(Generic[TContext]):
         ...
 
     @overload
-    def use(
-        self: "Client[TContext]", DocumentorCollection: Type[TCollection]
-    ) -> TCollection:
+    def use(self: "Client[TContext]", DocumentorCollection: Type[TCollection]) -> TCollection:
         ...
 
     def use(self: "Client[TContext]", DocumentorCollection):

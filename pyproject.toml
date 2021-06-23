@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "satel_mongo"
+name = "vanmongo"
 version = "0.1.0"
 description = ""
 authors = ["Quinn Blenkinsop <quinn@blenkinsop.net>"]
