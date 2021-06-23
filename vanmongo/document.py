@@ -44,9 +44,7 @@ class BaseDocument(BaseModel):
         cls: Type[TDocument],
         handler: Callable[[EventType, TDocument], Coroutine[Any, Any, None]],
     ):
-        cls.__events.append(
-            RegisteredChangeEvent(type=EventType.CHANGE, handler=handler)
-        )
+        cls.__events.append(RegisteredChangeEvent(type=EventType.CHANGE, handler=handler))
 
     @classmethod
     async def _trigger_create(cls: Type[TDocument], value: TDocument, context=None):

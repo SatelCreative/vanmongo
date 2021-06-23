@@ -5,7 +5,7 @@ from async_search_client import Client as SearchClient
 from pydantic import BaseModel
 from pymongo import MongoClient
 
-from satel_mongo import Client
+from vanmongo import Client
 
 
 class TestConfig(BaseModel):

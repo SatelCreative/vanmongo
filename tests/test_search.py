@@ -2,7 +2,7 @@ from typing import List
 
 import pytest
 
-from satel_mongo import BaseDocument, Client
+from vanmongo import BaseDocument, Client
 
 from .test_connection import extract_nodes
 
