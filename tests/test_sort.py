@@ -29,9 +29,7 @@ async def test_sort(test_config):
     index_ascending = [item async for item in items.find(sort="index", limit=10)]
     assert index_ascending == fixture[:10]
 
-    index_descending = [
-        item async for item in items.find(sort="index", reverse=True, limit=10)
-    ]
+    index_descending = [item async for item in items.find(sort="index", reverse=True, limit=10)]
     assert index_descending == fixture_reversed[:10]
 
     created_ascending = [item async for item in items.find(sort="created_at", limit=10)]
@@ -44,9 +42,7 @@ async def test_sort(test_config):
 
     fixture_updated = await items.update_one_by_id(fixture[5].id, {"index": 999})
 
-    updated_index_ascending = [
-        item async for item in items.find(sort="index", limit=10)
-    ]
+    updated_index_ascending = [item async for item in items.find(sort="index", limit=10)]
     assert updated_index_ascending == fixture[:5] + fixture[6:11]
 
     updated_index_descending = [
@@ -54,9 +50,7 @@ async def test_sort(test_config):
     ]
     assert updated_index_descending == [fixture_updated] + fixture_reversed[:9]
 
-    updated_updated_ascending = [
-        item async for item in items.find(sort="updated_at", limit=10)
-    ]
+    updated_updated_ascending = [item async for item in items.find(sort="updated_at", limit=10)]
     assert updated_updated_ascending == fixture[:5] + fixture[6:11]
 
     updated_updated_descending = [
