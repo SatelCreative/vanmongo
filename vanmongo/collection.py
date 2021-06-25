@@ -61,7 +61,9 @@ class Collection(Generic[TDocument]):
         return cast(Coroutine[Any, Any, Optional[TDocument]], self.loader.load(id))
 
     def load(self, ids: List[str]) -> Coroutine[Any, Any, List[Optional[TDocument]]]:
-        return cast(Coroutine[Any, Any, List[Optional[TDocument]]], self.loader.load_many(ids))
+        return cast(
+            Coroutine[Any, Any, List[Optional[TDocument]]], self.loader.load_many(ids)
+        )
 
     async def find_one(self, query: Dict[str, Any]) -> Optional[TDocument]:
         raw = await self.collection.find_one(query)
@@ -135,7 +137,9 @@ class Collection(Generic[TDocument]):
                     ]
                 }
 
-        cursor = self.find(query=connection_query, sort=sort, reverse=reverse, limit=page_size + 1)
+        cursor = self.find(
+            query=connection_query, sort=sort, reverse=reverse, limit=page_size + 1
+        )
         nodes = [node async for node in cursor]
 
         has_next_page = False
@@ -155,7 +159,9 @@ class Collection(Generic[TDocument]):
 
         Edge[TDocument].update_forward_refs()
 
-        page_info = PageInfo(has_next_page=has_next_page, has_previous_page=has_previous_page)
+        page_info = PageInfo(
+            has_next_page=has_next_page, has_previous_page=has_previous_page
+        )
         edges: List[Edge[TDocument]] = []
         for node in nodes:
             cursor = MongoCursor(
@@ -279,7 +285,9 @@ class Collection(Generic[TDocument]):
             raise Exception("Does not exist")
 
         # Copy does not perform validation
-        updated_dict = original_document.copy(update=update, deep=True).dict(by_alias=True)
+        updated_dict = original_document.copy(update=update, deep=True).dict(
+            by_alias=True
+        )
         updated_document = self.Document.parse_obj(updated_dict)
 
         original_dict = original_document.dict(by_alias=True)
@@ -300,7 +308,9 @@ class Collection(Generic[TDocument]):
                 {"id": original_document.id}, update={"$set": updated_values}
             )
 
-            await self.Document._trigger_update(updated_document, context=self.client.context)
+            await self.Document._trigger_update(
+                updated_document, context=self.client.context
+            )
 
         return updated_document
 
