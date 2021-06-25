@@ -1,4 +1,4 @@
-from typing import Optional, TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Optional, cast
 
 import pytest
 from pydantic import BaseModel
