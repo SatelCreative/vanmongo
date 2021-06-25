@@ -20,8 +20,8 @@ TCollection = TypeVar("TCollection", bound="BaseCollection")
 class Config(BaseModel):
     mongo_url: str
     mongo_database: str
-    meilsearch_url: Optional[str] = None
-    meilsearch_key: Optional[str] = None
+    meilisearch_url: Optional[str] = None
+    meilisearch_key: Optional[str] = None
 
 
 def create_find_by_ids(db, doc):
@@ -115,14 +115,14 @@ class Client(Generic[TContext]):
         cls,
         mongo_url: str = None,
         mongo_database: str = None,
-        meilsearch_url: Optional[str] = None,
-        meilsearch_key: Optional[str] = None,
+        meilisearch_url: Optional[str] = None,
+        meilisearch_key: Optional[str] = None,
     ):
         cls.config = Config(
             mongo_url=mongo_url,
             mongo_database=mongo_database,
-            meilsearch_url=meilsearch_url,
-            meilsearch_key=meilsearch_key,
+            meilisearch_url=meilisearch_url,
+            meilisearch_key=meilisearch_key,
         )
         cls.__client = AsyncIOMotorClient(cls.config.mongo_url)
 
@@ -130,9 +130,9 @@ class Client(Generic[TContext]):
         await cls.__mongo_setup_indexes()
 
         # Setup search
-        if cls.config.meilsearch_url:
+        if cls.config.meilisearch_url:
             cls.__search = SearchClient(
-                cls.config.meilsearch_url, cls.config.meilsearch_key
+                cls.config.meilisearch_url, cls.config.meilisearch_key
             )
 
             await cls.__search_setup_indexes()

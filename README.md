@@ -16,7 +16,7 @@ Note that this will depend on how your project is setup and the framework you ar
 # main.py
 
 from fastapi import FastAPI
-from ___ import Client
+from vanmongo import Client
 
 app = FastAPI()
 
@@ -40,7 +40,7 @@ async def shutdown():
 # product.py
 
 from typing import Optional, List
-from ___ import BaseDocument
+from vanmongo import BaseDocument
 
 class Product(BaseDocument):
     title: str
@@ -53,7 +53,7 @@ class Product(BaseDocument):
 
 ```py
 # main.py (cont)
-from ___ import Client
+from vanmongo import Client
 from .product import Product
 
 # ...
@@ -79,7 +79,7 @@ async def post_product_route(product: ProductCreate):
 
 ```py
 from fastapi import Depends
-from ____ import Client
+from vanmongo import Client
 
 # ...
 
@@ -102,7 +102,7 @@ async def get_products(client: Client = Depends(create_client)):
 
 from ariadne import QueryType, gql, make_executable_schema
 from ariadne.asgi import GraphQL
-from ___ import Client
+from vanmongo import Client
 
 
 async def create_context(request):

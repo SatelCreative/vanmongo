@@ -29,7 +29,7 @@ async def test_initialize_search(test_config, wait_for_index):
 
         await Client.shutdown()
 
-    # Expect initialize to populate meilsearch
+    # Expect initialize to populate meilisearch
     await setup()
 
     class Product(BaseDocument, search=["title"]):
@@ -38,7 +38,7 @@ async def test_initialize_search(test_config, wait_for_index):
     await Client.initialize(
         mongo_url=test_config.mongo_url,
         mongo_database=test_config.mongo_database,
-        meilsearch_url=test_config.meilsearch_url,
+        meilisearch_url=test_config.meilisearch_url,
     )
 
     await wait_for_index("products")
