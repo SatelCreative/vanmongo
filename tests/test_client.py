@@ -1,10 +1,9 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING, cast
 
 import pytest
 from pydantic import BaseModel
 
 from vanmongo import BaseDocument, Client
-
 
 class Context(BaseModel):
     admin: bool
@@ -58,7 +57,9 @@ async def test_find(test_config):
     assert await items.find_one_by_id(created[0].id) == created[0]
     assert await items.find_one_by_id(created[9].id) == created[9]
 
-    result = await items.find_by_ids([created[9].id, "fakeid", created[3].id, created[5].id])
+    result = await items.find_by_ids(
+        [created[9].id, "fakeid", created[3].id, created[5].id]
+    )
     assert result == [created[9], None, created[3], created[5]]
 
     assert [item async for item in items.find()] == created
@@ -82,7 +83,9 @@ async def test_update(test_config):
         item = await items.create_one({"index": index})
         created.append(item)
 
-    updated = await items.update_one({"index": 4}, {"description": "Hello there how are you?"})
+    updated = await items.update_one(
+        {"index": 4}, {"description": "Hello there how are you?"}
+    )
     assert updated.updated_at >= created[4].updated_at
     assert updated.description == "Hello there how are you?"
     assert await items.find_one_by_id(updated.id) == updated
