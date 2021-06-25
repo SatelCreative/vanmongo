@@ -38,7 +38,7 @@ jobs:
         run: |
           source $VENV
           mypy .
-      - name: Test
-        run: |
-          source $VENV
-          pytest .
+      # - name: Test
+      #   run: |
+      #     source $VENV
+      #     pytest .
