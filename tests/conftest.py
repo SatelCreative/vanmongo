@@ -11,7 +11,7 @@ from vanmongo import Client
 class TestConfig(BaseModel):
     mongo_url: str = "mongodb://localhost:27017"
     mongo_database: str = "satel-mongo"
-    meilsearch_url: str = "http://localhost:7700"
+    meilisearch_url: str = "http://localhost:7700"
 
 
 @pytest.yield_fixture(scope="session")
@@ -39,7 +39,7 @@ def db(mongo, test_config):
 
 @pytest.fixture(scope="session")
 async def search(test_config):
-    async with SearchClient(test_config.meilsearch_url) as client:
+    async with SearchClient(test_config.meilisearch_url) as client:
         yield client
 
 
@@ -65,7 +65,7 @@ async def reset(mongo, search, test_config):
     # MongoDB
     mongo.drop_database(test_config.mongo_database)
 
-    # Meilsearch
+    # meilisearch
     indexes = await search.get_indexes()
     if not indexes:
         return

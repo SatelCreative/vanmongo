@@ -132,7 +132,7 @@ async def test_search_connection(test_config, wait_for_index):
     await Client.initialize(
         mongo_url=test_config.mongo_url,
         mongo_database=test_config.mongo_database,
-        meilsearch_url=test_config.meilsearch_url,
+        meilisearch_url=test_config.meilisearch_url,
     )
 
     products = Client().use(Product)
