@@ -75,6 +75,43 @@ async def post_product_route(product: ProductCreate):
     return await products.create_one(product)
 ```
 
+## Operations
+
+```py
+client = Client()
+
+products = client.use(Product)
+
+# Find a single document by id
+pants = await products.find_one_by_id('1234xyz')
+
+# Find a single document by mongo find query
+tshirt = await products.find_one({'title': 'tshirt'})
+
+# Find list of documents from list of ids (order is maintained)
+product_list = await products.find_by_ids(['1234xyz', '9876abc'])
+
+# Find documents by mongo query (async generator)
+# Documents are loaded in batches
+async for product in products.find({'price': 100}):
+    pass
+
+# Find document connections (cursor pagination)
+connection = await products.find_connection(first: 50)
+
+# Create one document (validated by pydantic)
+created_product = await products.create_one({
+    'title': 'tshirt',
+    'price': 1000,
+})
+
+# Update one document by id (validated by pydantic)
+updated_product = await products.update_one_by_id('1234xyz', {'title': 'Updated title'})
+
+# Update one document by mongo find query (validated by pydantic)
+red_product = await products.update_one({'title': 'tshirt'}, {'title': 'red tshirt'})
+```
+
 ## FastAPI
 
 ```py
