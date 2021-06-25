@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from vanmongo import BaseDocument, Client
 
+
 class Context(BaseModel):
     admin: bool
 
