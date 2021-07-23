@@ -71,7 +71,7 @@ class Client(Generic[TContext]):
         for key, doc in cls.__documents.items():
             collection = db[key]
 
-            await collection.create_index("id", name="id")
+            await collection.create_index("id")
 
             for sort_key in doc._sort_options:
                 await collection.create_index(
