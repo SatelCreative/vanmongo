@@ -66,7 +66,7 @@ class Collection(Generic[TDocument]):
     async def find_one(self, query: Dict[str, Any]) -> Optional[TDocument]:
         """
         Find a document base on the query
-        Work the same as db.collection.findOne() in MongoDB
+        Works similar to db.collection.findOne() in MongoDB
         """
         raw = await self.collection.find_one(query)
         return self.Document.parse_obj(raw) if raw else None
@@ -286,7 +286,7 @@ class Collection(Generic[TDocument]):
     async def update_one(self, query: Dict[str, Any], update: Dict[str, Any] = {}):
         """
         Update a document based on the query
-        Work the same as db.collection.updateOne() in MongoDB
+        Works similar to db.collection.updateOne() in MongoDB
         """
         original_document = await self.find_one(query)
 
