@@ -178,7 +178,9 @@ class Collection(Generic[TDocument]):
 
         Edge[TDocument].update_forward_refs()
 
-        page_info = PageInfo(has_next_page=has_next_page, has_previous_page=has_previous_page)
+        page_info = PageInfo(
+            has_next_page=has_next_page, has_previous_page=has_previous_page
+        )
         edges: List[Edge[TDocument]] = []
         for node in nodes:
             cursor = MongoCursor(
@@ -307,7 +309,9 @@ class Collection(Generic[TDocument]):
             raise Exception("Does not exist")
 
         # Copy does not perform validation
-        updated_dict = original_document.copy(update=update, deep=True).dict(by_alias=True)
+        updated_dict = original_document.copy(update=update, deep=True).dict(
+            by_alias=True
+        )
         updated_document = self.Document.parse_obj(updated_dict)
 
         original_dict = original_document.dict(by_alias=True)
@@ -328,7 +332,9 @@ class Collection(Generic[TDocument]):
                 {"id": original_document.id}, update={"$set": updated_values}
             )
 
-            await self.Document._trigger_update(updated_document, context=self.client.context)
+            await self.Document._trigger_update(
+                updated_document, context=self.client.context
+            )
 
         return updated_document
 
