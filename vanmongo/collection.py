@@ -58,13 +58,9 @@ class Collection(Generic[TDocument]):
         return self.client.loaders[self.Document._collection]
 
     def load_one(self, id: str) -> Coroutine[Any, Any, Optional[TDocument]]:
-        return cast(
-            Coroutine[Any, Any, Optional[TDocument]], self.loader.load(id)
-        )
+        return cast(Coroutine[Any, Any, Optional[TDocument]], self.loader.load(id))
 
-    def load(
-        self, ids: List[str]
-    ) -> Coroutine[Any, Any, List[Optional[TDocument]]]:
+    def load(self, ids: List[str]) -> Coroutine[Any, Any, List[Optional[TDocument]]]:
         return cast(
             Coroutine[Any, Any, List[Optional[TDocument]]],
             self.loader.load_many(ids),
@@ -182,9 +178,7 @@ class Collection(Generic[TDocument]):
 
         Edge[TDocument].update_forward_refs()
 
-        page_info = PageInfo(
-            has_next_page=has_next_page, has_previous_page=has_previous_page
-        )
+        page_info = PageInfo(has_next_page=has_next_page, has_previous_page=has_previous_page)
         edges: List[Edge[TDocument]] = []
         for node in nodes:
             cursor = MongoCursor(
@@ -279,9 +273,7 @@ class Collection(Generic[TDocument]):
 
         now = datetime.utcnow()
         # Keep same precision as mongo
-        now = now.replace(
-            microsecond=int(round(now.microsecond, -3) % 1000000)
-        )
+        now = now.replace(microsecond=int(round(now.microsecond, -3) % 1000000))
 
         document.update(
             {
@@ -304,9 +296,7 @@ class Collection(Generic[TDocument]):
 
         return doc
 
-    async def update_one(
-        self, query: Dict[str, Any], update: Dict[str, Any] = {}
-    ):
+    async def update_one(self, query: Dict[str, Any], update: Dict[str, Any] = {}):
         """
         Update a document based on the query
         Works similar to db.collection.updateOne() in MongoDB
@@ -317,9 +307,7 @@ class Collection(Generic[TDocument]):
             raise Exception("Does not exist")
 
         # Copy does not perform validation
-        updated_dict = original_document.copy(update=update, deep=True).dict(
-            by_alias=True
-        )
+        updated_dict = original_document.copy(update=update, deep=True).dict(by_alias=True)
         updated_document = self.Document.parse_obj(updated_dict)
 
         original_dict = original_document.dict(by_alias=True)
@@ -334,17 +322,13 @@ class Collection(Generic[TDocument]):
         if updated_values:
             now = datetime.utcnow()
             # Keep same precision as mongo
-            now = now.replace(
-                microsecond=int(round(now.microsecond, -3) % 1000000)
-            )
+            now = now.replace(microsecond=int(round(now.microsecond, -3) % 1000000))
             updated_values["updated_at"] = updated_document.updated_at = now
             await self.collection.update_one(
                 {"id": original_document.id}, update={"$set": updated_values}
             )
 
-            await self.Document._trigger_update(
-                updated_document, context=self.client.context
-            )
+            await self.Document._trigger_update(updated_document, context=self.client.context)
 
         return updated_document
 

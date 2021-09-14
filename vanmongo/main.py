@@ -1,17 +1,7 @@
 from __future__ import annotations
 
 from asyncio import gather
-from typing import (
-    Any,
-    ClassVar,
-    Dict,
-    Generic,
-    List,
-    Optional,
-    Type,
-    TypeVar,
-    overload,
-)
+from typing import Any, ClassVar, Dict, Generic, List, Optional, Type, TypeVar, overload
 
 from aiodataloader import DataLoader
 from aiostream import stream
@@ -37,9 +27,7 @@ class Config(BaseModel):
 def create_find_by_ids(db, doc):
     async def find_by_ids(ids):
         documents = {}
-        async for raw in db[doc._collection].find(
-            {"$or": [{"id": i} for i in ids]}
-        ):
+        async for raw in db[doc._collection].find({"$or": [{"id": i} for i in ids]}):
             document = doc.parse_obj(raw)
             documents[document.id] = document
         return [documents.get(i) for i in ids]
@@ -66,9 +54,7 @@ class Client(Generic[TContext]):
     def __init__(self, context: TContext = None):
         """Creates a VanMongo client instance"""
         if self.__client == NotImplemented:
-            raise Exception(
-                "Client cannot be used before it has been initialized"
-            )
+            raise Exception("Client cannot be used before it has been initialized")
 
         self.context = context
 
@@ -89,9 +75,7 @@ class Client(Generic[TContext]):
             await collection.create_index("id", name="id")
 
             for sort_key in doc._sort_options:
-                await collection.create_index(
-                    [(sort_key, 1), ("_id", 1)], name=f"sort_{sort_key}"
-                )
+                await collection.create_index([(sort_key, 1), ("_id", 1)], name=f"sort_{sort_key}")
 
     @classmethod
     async def __search_setup_indexes(cls):
@@ -155,9 +139,7 @@ class Client(Generic[TContext]):
 
         # Setup search
         if cls.config.meilisearch_url:
-            cls.__search = SearchClient(
-                cls.config.meilisearch_url, cls.config.meilisearch_key
-            )
+            cls.__search = SearchClient(cls.config.meilisearch_url, cls.config.meilisearch_key)
 
             await cls.__search_setup_indexes()
 
@@ -200,9 +182,7 @@ class Client(Generic[TContext]):
         ...
 
     @overload
-    def use(
-        self: "Client[TContext]", DocumentorCollection: Type[TCollection]
-    ) -> TCollection:
+    def use(self: "Client[TContext]", DocumentorCollection: Type[TCollection]) -> TCollection:
         ...
 
     def use(self: "Client[TContext]", DocumentorCollection):
@@ -210,9 +190,7 @@ class Client(Generic[TContext]):
         Access the documents in a collection
         """
         if issubclass(DocumentorCollection, BaseDocument):
-            return Collection[TDocument](
-                client=self, Document=DocumentorCollection
-            )
+            return Collection[TDocument](client=self, Document=DocumentorCollection)
         if issubclass(DocumentorCollection, BaseCollection):
             return DocumentorCollection(client=self)
         raise Exception("use must be called with Document or Collection")
@@ -224,9 +202,7 @@ class BaseCollection(Generic[TDocument], Collection[TDocument]):
     def __init__(self, client: Client):
         super().__init__(client=client, Document=self.__document)
 
-    def __init_subclass__(
-        cls, *args, document: Type[TDocument] = None, **kwargs
-    ):
+    def __init_subclass__(cls, *args, document: Type[TDocument] = None, **kwargs):
 
         # NOTE: known issue in mypy
         # https://github.com/python/mypy/issues/4660
