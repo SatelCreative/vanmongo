@@ -61,15 +61,20 @@ class Collection(Generic[TDocument]):
         return cast(Coroutine[Any, Any, Optional[TDocument]], self.loader.load(id))
 
     def load(self, ids: List[str]) -> Coroutine[Any, Any, List[Optional[TDocument]]]:
-        return cast(
-            Coroutine[Any, Any, List[Optional[TDocument]]], self.loader.load_many(ids)
-        )
+        return cast(Coroutine[Any, Any, List[Optional[TDocument]]], self.loader.load_many(ids))
 
     async def find_one(self, query: Dict[str, Any]) -> Optional[TDocument]:
+        """
+        Find a document base on the query
+        Work the same as db.collection.findOne() in MongoDB
+        """
         raw = await self.collection.find_one(query)
         return self.Document.parse_obj(raw) if raw else None
 
     async def find_one_by_id(self, id: str) -> Optional[TDocument]:
+        """
+        Find a document by ID
+        """
         return await self.find_one({"id": id})
 
     async def find(
@@ -80,6 +85,10 @@ class Collection(Generic[TDocument]):
         reverse: bool = False,
         batch_size=100,
     ) -> AsyncGenerator[TDocument, None]:
+        """
+        Find documents in the collection.
+        If no argument is given, it will act similar as "db.collection.find({})" in Mongodb.
+        """
         cursor = self.collection.find(query, batch_size=batch_size)
 
         direction = DESCENDING if reverse else ASCENDING
@@ -95,7 +104,7 @@ class Collection(Generic[TDocument]):
             yield self.Document.parse_obj(raw)
 
     async def find_by_ids(self, ids: List[str]) -> List[Optional[TDocument]]:
-        """Find documents by ids"""
+        """Find documents by a list of IDs"""
         documents = {}
         async for document in self.find({"$or": [{"id": i} for i in ids]}):
             documents[document.id] = document
@@ -137,9 +146,7 @@ class Collection(Generic[TDocument]):
                     ]
                 }
 
-        cursor = self.find(
-            query=connection_query, sort=sort, reverse=reverse, limit=page_size + 1
-        )
+        cursor = self.find(query=connection_query, sort=sort, reverse=reverse, limit=page_size + 1)
         nodes = [node async for node in cursor]
 
         has_next_page = False
@@ -159,9 +166,7 @@ class Collection(Generic[TDocument]):
 
         Edge[TDocument].update_forward_refs()
 
-        page_info = PageInfo(
-            has_next_page=has_next_page, has_previous_page=has_previous_page
-        )
+        page_info = PageInfo(has_next_page=has_next_page, has_previous_page=has_previous_page)
         edges: List[Edge[TDocument]] = []
         for node in nodes:
             cursor = MongoCursor(
@@ -279,15 +284,17 @@ class Collection(Generic[TDocument]):
         return doc
 
     async def update_one(self, query: Dict[str, Any], update: Dict[str, Any] = {}):
+        """
+        Update a document based on the query
+        Work the same as db.collection.updateOne() in MongoDB
+        """
         original_document = await self.find_one(query)
 
         if not original_document:
             raise Exception("Does not exist")
 
         # Copy does not perform validation
-        updated_dict = original_document.copy(update=update, deep=True).dict(
-            by_alias=True
-        )
+        updated_dict = original_document.copy(update=update, deep=True).dict(by_alias=True)
         updated_document = self.Document.parse_obj(updated_dict)
 
         original_dict = original_document.dict(by_alias=True)
@@ -308,11 +315,10 @@ class Collection(Generic[TDocument]):
                 {"id": original_document.id}, update={"$set": updated_values}
             )
 
-            await self.Document._trigger_update(
-                updated_document, context=self.client.context
-            )
+            await self.Document._trigger_update(updated_document, context=self.client.context)
 
         return updated_document
 
     async def update_one_by_id(self, id: str, update: Dict[str, Any] = {}):
+        """Update a document with specific ID"""
         return await self.update_one({"id": id}, update)
