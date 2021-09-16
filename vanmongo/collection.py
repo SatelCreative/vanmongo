@@ -62,14 +62,22 @@ class Collection(Generic[TDocument]):
 
     def load(self, ids: List[str]) -> Coroutine[Any, Any, List[Optional[TDocument]]]:
         return cast(
-            Coroutine[Any, Any, List[Optional[TDocument]]], self.loader.load_many(ids)
+            Coroutine[Any, Any, List[Optional[TDocument]]],
+            self.loader.load_many(ids),
         )
 
     async def find_one(self, query: Dict[str, Any]) -> Optional[TDocument]:
+        """
+        Find a document base on the query
+        Works similar to db.collection.findOne() in MongoDB
+        """
         raw = await self.collection.find_one(query)
         return self.Document.parse_obj(raw) if raw else None
 
     async def find_one_by_id(self, id: str) -> Optional[TDocument]:
+        """
+        Find a document by ID
+        """
         return await self.find_one({"id": id})
 
     async def find(
@@ -80,6 +88,11 @@ class Collection(Generic[TDocument]):
         reverse: bool = False,
         batch_size=100,
     ) -> AsyncGenerator[TDocument, None]:
+        """
+        Find documents in the collection.
+        If no argument is given, it will act similar as
+        "db.collection.find({})" in Mongodb.
+        """
         cursor = self.collection.find(query, batch_size=batch_size)
 
         direction = DESCENDING if reverse else ASCENDING
@@ -95,7 +108,7 @@ class Collection(Generic[TDocument]):
             yield self.Document.parse_obj(raw)
 
     async def find_by_ids(self, ids: List[str]) -> List[Optional[TDocument]]:
-        """Find documents by ids"""
+        """Find documents by a list of IDs"""
         documents = {}
         async for document in self.find({"$or": [{"id": i} for i in ids]}):
             documents[document.id] = document
@@ -133,12 +146,18 @@ class Collection(Generic[TDocument]):
                         {cursor.sort: {op: cursor.value}},
                         # Need secondary comparison for correct pagination
                         # when primary comparison has duplicate values
-                        {cursor.sort: cursor.value, "_id": connection_query["_id"]},
+                        {
+                            cursor.sort: cursor.value,
+                            "_id": connection_query["_id"],
+                        },
                     ]
                 }
 
         cursor = self.find(
-            query=connection_query, sort=sort, reverse=reverse, limit=page_size + 1
+            query=connection_query,
+            sort=sort,
+            reverse=reverse,
+            limit=page_size + 1,
         )
         nodes = [node async for node in cursor]
 
@@ -215,7 +234,8 @@ class Collection(Generic[TDocument]):
         Edge[TDocument].update_forward_refs()
 
         page_info = PageInfo(
-            has_next_page=offset + limit < result.nb_hits, has_previous_page=offset != 0
+            has_next_page=offset + limit < result.nb_hits,
+            has_previous_page=offset != 0,
         )
         edges: List[Edge[TDocument]] = []
         for i, node in enumerate(nodes):
@@ -279,6 +299,10 @@ class Collection(Generic[TDocument]):
         return doc
 
     async def update_one(self, query: Dict[str, Any], update: Dict[str, Any] = {}):
+        """
+        Update a document based on the query
+        Works similar to db.collection.updateOne() in MongoDB
+        """
         original_document = await self.find_one(query)
 
         if not original_document:
@@ -315,6 +339,7 @@ class Collection(Generic[TDocument]):
         return updated_document
 
     async def update_one_by_id(self, id: str, update: Dict[str, Any] = {}):
+        """Update a document with specific ID"""
         return await self.update_one({"id": id}, update)
 
     async def aggregate(
