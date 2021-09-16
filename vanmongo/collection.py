@@ -320,6 +320,7 @@ class Collection(Generic[TDocument]):
     async def aggregate(
         self, aggregation_pipeline: List[Dict[str, Any]]
     ) -> AsyncGenerator[Any, None]:
+        """Perform aggregation on collection"""
         cursor = self.collection.aggregate(aggregation_pipeline)
 
         async for raw in cursor:
