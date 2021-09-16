@@ -42,7 +42,7 @@ async def default_make(instance: TDocument):
 
 
 class Client(Generic[TContext]):
-    """Client"""
+    """The VanMongo Client class"""
 
     __client: ClassVar[Any] = NotImplemented
     __search: ClassVar[Any] = NotImplemented
@@ -52,6 +52,7 @@ class Client(Generic[TContext]):
     context: Optional[TContext] = None
 
     def __init__(self, context: TContext = None):
+        """Creates a VanMongo client instance"""
         if self.__client == NotImplemented:
             raise Exception("Client cannot be used before it has been initialized")
 
@@ -118,6 +119,15 @@ class Client(Generic[TContext]):
         meilisearch_url: Optional[str] = None,
         meilisearch_key: Optional[str] = None,
     ):
+        """
+        Initialize client setting for Vanmongo
+
+        mongo_url: The connection string URI of MongoDB.
+            Eg. "mongodb://localhost:27017"
+        mongo_database: The name of the database. Eg. "mydb"
+        meilisearch_url: The URL of MeiliSearch’s address
+        meilisearch_key: The key for access permission for the MeiliSearch API
+        """
         cls.config = Config(
             mongo_url=mongo_url,
             mongo_database=mongo_database,
@@ -182,6 +192,9 @@ class Client(Generic[TContext]):
         ...
 
     def use(self: "Client[TContext]", DocumentorCollection):
+        """
+        Access the documents in a collection
+        """
         if issubclass(DocumentorCollection, BaseDocument):
             return Collection[TDocument](client=self, Document=DocumentorCollection)
         if issubclass(DocumentorCollection, BaseCollection):
@@ -211,7 +224,7 @@ DEFAULT_SORT_OPTIONS: List[str] = ["updated_at", "created_at"]
 
 
 class BaseDocument(InternalBaseDocument):
-    """BaseDocument"""
+    """BaseDocument use to declare documents"""
 
     def __init_subclass__(
         cls,
