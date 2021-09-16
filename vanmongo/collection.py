@@ -316,3 +316,11 @@ class Collection(Generic[TDocument]):
 
     async def update_one_by_id(self, id: str, update: Dict[str, Any] = {}):
         return await self.update_one({"id": id}, update)
+
+    async def aggregate(
+        self, aggregation_pipeline: List[Dict[str, Any]]
+    ) -> AsyncGenerator[Any, None]:
+        cursor = self.collection.aggregate(aggregation_pipeline)
+
+        async for raw in cursor:
+            yield raw
