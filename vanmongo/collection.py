@@ -344,8 +344,21 @@ class Collection(Generic[TDocument]):
 
     async def aggregate(
         self, aggregation_pipeline: List[Dict[str, Any]]
+    ) -> AsyncGenerator[TDocument, None]:
+        """Perform aggregation on collection
+        This only return document that has the same structure as defined
+        """
+        cursor = self.collection.aggregate(aggregation_pipeline)
+
+        async for raw in cursor:
+            yield self.Document.parse_obj(raw)
+
+    async def aggregate_raw(
+        self, aggregation_pipeline: List[Dict[str, Any]]
     ) -> AsyncGenerator[Any, None]:
-        """Perform aggregation on collection"""
+        """Perform aggregation on collection
+        This will return raw result of aggregation
+        """
         cursor = self.collection.aggregate(aggregation_pipeline)
 
         async for raw in cursor:
