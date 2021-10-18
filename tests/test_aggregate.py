@@ -21,11 +21,9 @@ async def test_aggregate(test_config):
     items = client.use(Item)
 
     fixture: List[Item] = []
-    fixture_raw: List[dict] = []
     for index in range(50):
         item = await items.create_one({"index": index})
         fixture.append(item)
-        fixture_raw.append(item.dict())
 
     aggregation_pipeline = [
         {"$match": {"index": {"$exists": True}}},
@@ -37,8 +35,14 @@ async def test_aggregate(test_config):
     ]
     assert sort_by_creation == fixture
 
+    aggregation_pipeline = [
+        {"$match": {"index": {"$exists": True}}},
+        {"$sort": {"created_at": 1}},
+        {"$limit": 5},
+    ]
+
     sort_by_creation_raw = [
         item
         async for item in items.aggregate_raw(aggregation_pipeline=aggregation_pipeline)
     ]
-    assert sort_by_creation_raw == fixture_raw
+    assert len(sort_by_creation_raw) == 5
