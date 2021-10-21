@@ -117,7 +117,7 @@ async def test_update_multiple(test_config):
         assert updated.description == "Hello there how are you?"
         assert await items.find_one_by_id(updated.id) == updated
 
-    assert count == 7
+    assert count == 6
 
 
 @pytest.mark.asyncio
