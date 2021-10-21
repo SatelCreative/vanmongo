@@ -93,6 +93,30 @@ async def test_update(test_config):
 
 
 @pytest.mark.asyncio
+async def test_update_multiple(test_config):
+    class Item(BaseDocument):
+        index: int
+        description: Optional[str]
+
+    await Client.initialize(
+        mongo_url=test_config.mongo_url, mongo_database=test_config.mongo_database
+    )
+
+    items = Client().use(Item)
+
+    created = []
+    for index in range(10):
+        item = await items.create_one({"index": index})
+        created.append(item)
+
+    async for updated in items.update_many(
+        {"index": {"$ge": 4}}, {"description": "Hello there how are you?"}
+    ):
+        assert updated.description == "Hello there how are you?"
+        assert await items.find_one_by_id(updated.id) == updated
+
+
+@pytest.mark.asyncio
 async def test_multiple_documents(test_config):
     class Product(BaseDocument):
         title: str

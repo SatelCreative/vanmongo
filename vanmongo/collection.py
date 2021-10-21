@@ -338,6 +338,21 @@ class Collection(Generic[TDocument]):
 
         return updated_document
 
+    async def update_many(
+        self, query: Dict[str, Any], update: Dict[str, Any] = {}
+    ) -> AsyncGenerator[TDocument, None]:
+        """
+        Update multiple documents based on the query
+        Works similar to db.collection.updateMany() in MongoDB
+        """
+        cursor = self.collection.find(query)
+        async for raw in cursor:
+            document_id = raw['id']
+            updated_document = await self.update_one(
+                query={"id": document_id}, update=update
+            )
+            yield updated_document
+
     async def update_one_by_id(self, id: str, update: Dict[str, Any] = {}):
         """Update a document with specific ID"""
         return await self.update_one({"id": id}, update)
