@@ -347,7 +347,7 @@ class Collection(Generic[TDocument]):
         """
         cursor = self.collection.find(query)
         async for raw in cursor:
-            document_id = raw['id']
+            document_id = raw["id"]
             updated_document = await self.update_one(
                 query={"id": document_id}, update=update
             )
