@@ -110,7 +110,7 @@ async def test_update_multiple(test_config):
         created.append(item)
 
     async for updated in items.update_many(
-        {"index": {"$ge": 4}}, {"description": "Hello there how are you?"}
+        {"index": {"$gte": 4}}, {"description": "Hello there how are you?"}
     ):
         assert updated.description == "Hello there how are you?"
         assert await items.find_one_by_id(updated.id) == updated
