@@ -110,13 +110,14 @@ async def test_update_multiple(test_config):
         created.append(item)
 
     count = 0
+    # Update index >= 4, which will be 6 (4 5 6 7 8 9)
     async for updated in items.update_many(
         {"index": {"$gte": 4}}, {"description": "Hello there how are you?"}
     ):
         count += 1
         assert updated.description == "Hello there how are you?"
         assert await items.find_one_by_id(updated.id) == updated
-
+    # Verify the number updated
     assert count == 6
 
 
