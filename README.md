@@ -1,3 +1,6 @@
+Consider [beanie](https://github.com/roman-right/beanie)
+
+
 # Vincent VanMongo
 
 ## Installation
